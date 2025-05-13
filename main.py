@@ -1,1 +1,2 @@
-print('Daniyal stinkt')
+print('Hello World!');
+
