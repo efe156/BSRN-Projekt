@@ -1,2 +1,11 @@
-# Teilnehmer-Verwaltung
+# connected UDP-Socket erstellen
 
+import socket
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #Socket erstellen
+sock.bind(('', 4000))  #Hört auf Port 4000 zu
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1) #Broadcast aktivieren
+
+print("Discovry-Dienst läuft auf Port 4000...")
+
+while True:
