@@ -1,0 +1,5 @@
+handle = "5050"
+port = 1
+whoisport = 1
+autoreply = "1"
+imagepath = "python3 main.py"
