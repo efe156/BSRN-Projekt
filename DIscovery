@@ -2,13 +2,40 @@
 
 import socket
 
+teilnehmer = []  # Liste für Teilnehmer
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #Socket erstellen
 sock.bind(('', 4000))  #Hört auf Port 4000 zu
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1) #Broadcast aktivieren
 
-print("Discovry-Dienst läuft auf Port 4000...")
+print("Discovery-Dienst läuft auf Port 4000...")
 
-while True:
-    data, addr = sock.recvfrom(1024)  # empfängt max. 1024 Bytes
-    message = data.decode("utf-8").strip()  # wandelt Bytes zu Text um, entfernt \n etc.
-    print(f"[Empfangen] {message} von {addr}")
+
+while True: #While-Schleife um auf eingehende Nachrichten zu warten
+    daten, addresse = sock.recvfrom(1024)  # empfängt max. 1024 Bytes
+    nachricht = daten.decode("utf-8").strip()  # wandelt Bytes zu Text um, entfernt \n etc.
+    print(f"[Empfangen] {nachricht} von {addresse}")
+
+    if nachricht.startswith("JOIN"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und Teilnehmer in Liste aufnehmen
+        _, name, port = nachricht.split()
+        teilnehmer.append(name)
+        print(f"{name} ist beigetreten")
+
+    elif nachricht.startswith("LEAVE"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und Teilnehmer aus Liste entfernen
+        _, name = nachricht.split()
+        teilnehmer.remove(name)
+        print(f"{name} hat den Chat verlassen")
+
+    elif nachricht.startswith("MSG"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und ausgeben
+        _, name, nachricht = nachricht.split(maxsplit=2)
+        print(f"{name}: {nachricht}")
+
+    elif nachricht == "WHO":#Teilnehmerliste ausgeben
+        anttwort= "KNOWUSERS: " + ", ".join(teilnehmer)
+        sock.sendto(anttwort.encode("utf-8"), addresse)
+        print("Liste der aktiven Teilnehmer:")
+        for a in teilnehmer:
+            print(a)
+            
+
+
