@@ -17,25 +17,35 @@ while True: #While-Schleife um auf eingehende Nachrichten zu warten
     print(f"[Empfangen] {nachricht} von {addresse}")
 
     if nachricht.startswith("JOIN"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und Teilnehmer in Liste aufnehmen
-        _, name, port = nachricht.split()
-        teilnehmer.append(name)
-        print(f"{name} ist beigetreten")
+        _, handle, port = nachricht.split()
+        teilnehmer.append((handle,port))#Speichert den Teilnehmer in der Liste
+        antwort = f"JOINED: {handle} auf Port {port}"
+        sock.sendto(antwort.encode("utf-8"), addresse)
+        print(f"{handle} ist beigetreten")
 
     elif nachricht.startswith("LEAVE"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und Teilnehmer aus Liste entfernen
-        _, name = nachricht.split()
-        teilnehmer.remove(name)
-        print(f"{name} hat den Chat verlassen")
+        _, handle = nachricht.split()
+        teilnehmer.remove((handle,port))
+        antwort = f"LEFT: {handle}"
+        sock.sendto(antwort.encode("utf-8"), addresse)
+        print(f"{handle} hat den Chat verlassen")
 
     elif nachricht.startswith("MSG"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und ausgeben
-        _, name, nachricht = nachricht.split(maxsplit=2)
-        print(f"{name}: {nachricht}")
+        _, handle, nachricht = nachricht.split()
+        print(f"{handle}: {nachricht}")
+
+    elif nachricht.startswith("IMG"):
+        _, handle, dateiname, = nachricht.split()
+        print(f"{handle} hat ein Bild gesendet: {}")
 
     elif nachricht == "WHO":#Teilnehmerliste ausgeben
-        anttwort= "KNOWUSERS: " + ", ".join(teilnehmer)
-        sock.sendto(anttwort.encode("utf-8"), addresse)
+        antwort= "KNOWUSERS: " + ", ".join(teilnehmer)
+        sock.sendto(antwort.encode("utf-8"), addresse)
         print("Liste der aktiven Teilnehmer:")
         for a in teilnehmer:
             print(a)
             
+    else:
+        print("Fehler. Falsches Nachrichtenformat.")
 
 
