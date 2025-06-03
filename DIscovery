@@ -34,10 +34,6 @@ while True: #While-Schleife um auf eingehende Nachrichten zu warten
         _, handle, nachricht = nachricht.split()
         print(f"{handle}: {nachricht}")
 
-    elif nachricht.startswith("IMG"):
-        _, handle, dateiname, = nachricht.split()
-        print(f"{handle} hat ein Bild gesendet: {}")
-
     elif nachricht == "WHO":#Teilnehmerliste ausgeben
         antwort= "KNOWUSERS: " + ", ".join(teilnehmer)
         sock.sendto(antwort.encode("utf-8"), addresse)
