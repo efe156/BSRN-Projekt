@@ -2,7 +2,7 @@
 
 import socket
 
-teilnehmer = []  # Liste für Teilnehmer
+teilnehmer = {}  # HashMap für Teilnehmer
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) #Socket erstellen
 sock.bind(('', 4000))  #Hört auf Port 4000 zu
@@ -12,38 +12,35 @@ print("Discovery-Dienst läuft auf Port 4000...")
 
 
 while True: #While-Schleife um auf eingehende Nachrichten zu warten
-    daten, addresse = sock.recvfrom(1024)  # empfängt max. 1024 Bytes
+    daten, addresse= sock.recvfrom(1024)  # empfängt max. 1024 Bytes
     nachricht = daten.decode("utf-8").strip()  # wandelt Bytes zu Text um, entfernt \n etc.
     print(f"[Empfangen] {nachricht} von {addresse}")
 
     if nachricht.startswith("JOIN"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und Teilnehmer in Liste aufnehmen
         _, handle, port = nachricht.split()
-        teilnehmer.append((handle,port))#Speichert den Teilnehmer in der Liste
-        antwort = f"JOINED: {handle} auf Port {port}"
+        ip = addresse[0]
+        teilnehmer[handle] = (ip, int(port)) #Speichert den Teilnehmer in der Liste mit Name als Key und IP und Port als Value
+        antwort = f"JOIN {handle} {port}"
         sock.sendto(antwort.encode("utf-8"), addresse)
-        print(f"{handle} ist beigetreten")
+        
 
     elif nachricht.startswith("LEAVE"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und Teilnehmer aus Liste entfernen
         _, handle = nachricht.split()
-        teilnehmer.remove((handle,port))
-        antwort = f"LEFT: {handle}"
-        sock.sendto(antwort.encode("utf-8"), addresse)
-        print(f"{handle} hat den Chat verlassen")
-
-    elif nachricht.startswith("MSG"):#Erstes Segment der Nachricht analysieren, Nachricht filtern und ausgeben
-        _, handle, nachricht = nachricht.split()
-        print(f"{handle}: {nachricht}")
+        if handle in teilnehmer:
+            del teilnehmer[handle] #Entfernt den Teilnehmer aus der Liste
+            antwort = f"LEAVE {handle}" 
+        else:
+            antwort=f"[WARNUNG] {handle} nicht gefunden"
+    
 
     elif nachricht == "WHO":#Teilnehmerliste ausgeben
         antwort= "KNOWUSERS: " + ", ".join(teilnehmer)
         sock.sendto(antwort.encode("utf-8"), addresse)
-        print("Liste der aktiven Teilnehmer:")
-        for a in teilnehmer:
-            print(a)
+        
             
     else:
         antwort = "ERROR: Falsches Nachrichtenformat"
         sock.sendto(antwort.encode("utf-8"), addresse)
         print("Fehler. Falsches Nachrichtenformat.")
 
-
+  
