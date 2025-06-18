@@ -42,6 +42,8 @@ while True: #While-Schleife um auf eingehende Nachrichten zu warten
             print(a)
             
     else:
+        antwort = "ERROR: Falsches Nachrichtenformat"
+        sock.sendto(antwort.encode("utf-8"), addresse)
         print("Fehler. Falsches Nachrichtenformat.")
 
 
