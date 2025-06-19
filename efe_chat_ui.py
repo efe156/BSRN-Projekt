@@ -39,9 +39,11 @@ class ChatClientUI:
 
     def change_config(self):
         for key in self.config:
+            if key == "whoisport":
+                continue  # Schutz: whoisport darf nicht verändert werden
             new_value = input(f"{key} (aktuell: {self.config[key]}): ")
             if new_value.strip():
-                self.config[key] = int(new_value) if key in ["port", "whoisport"] else new_value
+                self.config[key] = int(new_value) if key == "port" else new_value
         self.save_config(self.config)
         print("Gespeichert!")
 
