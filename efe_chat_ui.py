@@ -3,7 +3,7 @@ import os
 import sys
 
 class ChatClientUI:
-    CONFIG_FILE = "config.toml"
+    CONFIG_FILE = "efe-config.toml"
     DEFAULT_CONFIG = {
         "handle": "User",
         "port": 5000,
@@ -38,16 +38,12 @@ class ChatClientUI:
             print(f"{key}: {value}")
 
     def change_config(self):
-        print("\n--- Konfiguration ändern ---")
         for key in self.config:
             new_value = input(f"{key} (aktuell: {self.config[key]}): ")
             if new_value.strip():
-                if key in ["port", "whoisport"]:
-                    self.config[key] = int(new_value)
-                else:
-                    self.config[key] = new_value
+                self.config[key] = int(new_value) if key in ["port", "whoisport"] else new_value
         self.save_config(self.config)
-        print("Konfiguration gespeichert.")
+        print("Gespeichert!")
 
     def run(self):
         while True:
@@ -58,10 +54,17 @@ class ChatClientUI:
             elif choice == "2":
                 self.change_config()
             elif choice == "3":
-                print("Programm wird gestartet...")
-                return self.config
+                print(f"\nStarte Chat-Client mit Handle: {self.config['handle']} auf Port {self.config['port']}...\n")
+                print("[Simulation] Nachricht empfangen von Bob: \"Hey, bist du da?\"")
+                print("[Simulation] Nachricht empfangen von Alice: \"Bild empfangen: cat.jpg\"")
+                print(f"[Simulation] Autoreply gesendet: \"{self.config['autoreply']}\"")
+                input("\nDrücke Enter, um zurückzukehren...")
             elif choice == "4":
                 print("Beenden...")
                 sys.exit()
             else:
-                print("Ungültige Auswahl, bitte erneut versuchen.")
+                print("Ungültige Eingabe.")
+
+if __name__ == "__main__":
+    ui = ChatClientUI()
+    ui.run()
