@@ -1,19 +1,31 @@
+"""
+efe_chat_ui.py
+
+Dieses Modul bietet die Klasse ChatClientUI für die Konsolen-UI.
+Die Methode run(ui_to_net, net_to_ui) stellt den Live-Chat bereit,
+liest Eingaben, zeigt eingehende Nachrichten und Discovery-Events an,
+erlaubt Broadcasts und Direktnachrichten an Peers.
+"""
+
 import toml
 import os
 import sys
+import queue
+from multiprocessing import Queue
+from netzwerk import send_msg, send_who_broadcast
 
 class ChatClientUI:
-    CONFIG_FILE = "efe-config.toml"
-    DEFAULT_CONFIG = {
-        "handle": "User",
-        "port": 5000,
-        "whoisport": 4000,
-        "autoreply": "Ich bin gerade nicht da.",
-        "imagepath": "./images"
-    }
-
-    def __init__(self):
+    def _init_(self, config_path="config.toml"):
+        self.CONFIG_FILE = config_path
+        self.DEFAULT_CONFIG = {
+            "handle": "User",
+            "port": 5000,
+            "whoisport": 4000,
+            "autoreply": "Ich bin gerade nicht da.",
+            "imagepath": "./images"
+        }
         self.config = self.load_config()
+        self.peers = {}  # Peer-Liste: handle -> (ip, port)
 
     def load_config(self):
         if not os.path.exists(self.CONFIG_FILE):
@@ -25,48 +37,92 @@ class ChatClientUI:
         with open(self.CONFIG_FILE, "w") as f:
             toml.dump(config, f)
 
-    def show_menu(self):
-        print("\n=== Chat-Client Menü ===")
-        print("1. Konfiguration anzeigen")
-        print("2. Konfiguration ändern")
-        print("3. Programm starten")
-        print("4. Beenden")
-
-    def show_config(self):
-        print("\n--- Aktuelle Konfiguration ---")
-        for key, value in self.config.items():
-            print(f"{key}: {value}")
-
     def change_config(self):
-        for key in self.config:
-            if key == "whoisport":
-                continue  # Schutz: whoisport darf nicht verändert werden
-            new_value = input(f"{key} (aktuell: {self.config[key]}): ")
-            if new_value.strip():
-                self.config[key] = int(new_value) if key == "port" else new_value
+        print("\n--- Konfiguration ändern ---")
+        for key in ("handle", "port", "autoreply", "imagepath"):
+            current = self.config.get(key)
+            new = input(f"{key} (aktuell: {current}): ")
+            if new.strip():
+                self.config[key] = int(new) if key == "port" else new
         self.save_config(self.config)
-        print("Gespeichert!")
+        print("Konfiguration gespeichert.\n")
 
-    def run(self):
+    def run(self, ui_to_net: Queue, net_to_ui: Queue):
+        """
+        Startet die Chat-Schleife:
+         - Anzeige eingehender Nachrichten und Discovery-Events aus net_to_ui
+         - Befehle: /help, /who, /msg <Handle> <Text>, /config, /quit
+         - Nachrichten ohne '/' werden als Broadcast via ui_to_net gesendet
+        """
+        handle = self.config["handle"]
+        port = self.config["port"]
+        whoisport = self.config["whoisport"]
+        autoreply = self.config.get("autoreply")
+
+        print(f"Willkommen, {handle}! (Chat-Port: {port})")
+        print("Gib '/help' für Befehle ein. Nachrichten ohne '/' werden broadcastet.")
+
         while True:
-            self.show_menu()
-            choice = input("Wähle eine Option: ")
-            if choice == "1":
-                self.show_config()
-            elif choice == "2":
-                self.change_config()
-            elif choice == "3":
-                print(f"\nStarte Chat-Client mit Handle: {self.config['handle']} auf Port {self.config['port']}...\n")
-                print("[Simulation] Nachricht empfangen von Bob: \"Hey, bist du da?\"")
-                print("[Simulation] Nachricht empfangen von Alice: \"Bild empfangen: cat.jpg\"")
-                print(f"[Simulation] Autoreply gesendet: \"{self.config['autoreply']}\"")
-                input("\nDrücke Enter, um zurückzukehren...")
-            elif choice == "4":
-                print("Beenden...")
-                sys.exit()
-            else:
-                print("Ungültige Eingabe.")
+            # Anzeigen aller eingehenden Nachrichten und Events
+            try:
+                while True:
+                    msg = net_to_ui.get_nowait()
+                    # Discovery-Event: Fülle Peer-Liste bei WHO-Reply
+                    if msg.startswith("[WHO-REPLY]"):
+                        # Format: [WHO-REPLY] Alice 192.168.1.5 5000;Bob 192.168.1.6 5001
+                        entries = msg.split(' ',1)[1].split(';')
+                        self.peers.clear()
+                        for entry in entries:
+                            h, ip, p = entry.split()
+                            self.peers[h] = (ip, int(p))
+                        print("Peers im Netzwerk:", ", ".join(self.peers.keys()))
+                    else:
+                        print(msg)
+            except queue.Empty:
+                pass
 
-if __name__ == "__main__":
+            # Eingabe
+            text = input("> ").strip()
+            if not text:
+                continue
+
+            if text.startswith("/"):
+                parts = text.split(maxsplit=2)
+                cmd = parts[0]
+
+                if cmd == "/help":
+                    print("Befehle:\n /who     - Teilnehmerliste abfragen\n /msg <Handle> <Nachricht> - Direktnachricht senden\n /config  - Konfiguration ändern\n /quit    - Chat beenden")
+
+                elif cmd == "/who":
+                    # Discovery Anfrage
+                    send_who_broadcast(whoisport)
+
+                elif cmd == "/msg":
+                    if len(parts) < 3:
+                        print("Nutzung: /msg <Handle> <Nachricht>")
+                    else:
+                        _, target, message = parts
+                        if target not in self.peers:
+                            print(f"Unbekannter Peer: {target}")
+                        else:
+                            ip, p = self.peers[target]
+                            send_msg(handle, message, ip, p)
+                            print(f"[Du -> {target}] {message}")
+
+                elif cmd == "/config":
+                    self.change_config()
+
+                elif cmd == "/quit":
+                    print("Beende Chat-Client…")
+                    sys.exit(0)
+
+                else:
+                    print(f"Unbekannter Befehl: {cmd}. '/help' für Übersicht.")
+
+            else:
+                # Broadcast-Nachricht an alle
+                ui_to_net.put(text)
+
+if _name_ == "_main_":
     ui = ChatClientUI()
-    ui.run()
+    ui.run(Queue(), Queue())
